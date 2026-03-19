@@ -278,6 +278,41 @@
       .toolbar { align-items: stretch; }
       .button-row button { width: 100%; }
     }
+    /* --- FIX iPhone / mobile --- */
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* iPhone nie będzie przybliżał formularza */
+input, button {
+  font-size: 16px;
+}
+
+/* długie nazwy nie rozwalą layoutu */
+.stat-value {
+  overflow-wrap: anywhere;
+}
+
+/* tabela nie rozciąga ekranu */
+table {
+  min-width: 0 !important;
+}
+
+/* lepsze przewijanie poziome tylko dla tabeli */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* opcjonalnie: ukryj kolumnę "Grupa" na małych ekranach */
+@media (max-width: 640px) {
+  th:nth-child(2),
+  td:nth-child(2) {
+    display: none;
+  }
+}
   </style>
 </head>
 <body>
