@@ -133,7 +133,13 @@
       color: var(--text);
       outline: none;
     }
+input[type="date"] {
+  min-height: 48px;
+}
 
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
     input:focus, select:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
