@@ -7,10 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Płatności" />
-  <meta name="description" content="Płatności za zajęcia – PWA na iPhone i GitHub Pages" />
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="./icons/icon-180.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <meta name="description" content="Płatności za zajęcia – lista osób z CSV, autouzupełnianie i zapis lokalny" />
   <title>Płatności za zajęcia</title>
   <style>
     :root {
@@ -23,22 +20,29 @@
       --primary-2: #1d4ed8;
       --danger: #dc2626;
       --success: #16a34a;
+      --warning-bg: #fff7ed;
+      --warning-line: #fed7aa;
+      --warning-text: #9a3412;
       --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
       --radius: 18px;
     }
 
     * { box-sizing: border-box; }
+
     html, body {
       margin: 0;
       padding: 0;
+      max-width: 100%;
+      overflow-x: hidden;
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     }
+
     body { min-height: 100vh; }
 
     .app {
-      max-width: 1100px;
+      max-width: 1180px;
       margin: 0 auto;
       padding: env(safe-area-inset-top, 0) 16px env(safe-area-inset-bottom, 0);
     }
@@ -47,7 +51,7 @@
       position: sticky;
       top: 0;
       z-index: 20;
-      background: rgba(248, 250, 252, 0.9);
+      background: rgba(248, 250, 252, 0.92);
       backdrop-filter: blur(10px);
       padding: 16px 0 12px;
     }
@@ -66,9 +70,15 @@
 
     .grid {
       display: grid;
-      grid-template-columns: 380px 1fr;
+      grid-template-columns: 400px 1fr;
       gap: 16px;
       margin: 16px 0 32px;
+      align-items: start;
+    }
+
+    .left-stack {
+      display: grid;
+      gap: 16px;
     }
 
     .card {
@@ -84,8 +94,20 @@
       font-size: 18px;
     }
 
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .card-head h2 {
+      margin: 0;
+    }
+
     .stack { display: grid; gap: 12px; }
-    .row { display: grid; gap: 6px; }
+    .row { display: grid; gap: 6px; position: relative; }
 
     label {
       font-size: 13px;
@@ -93,11 +115,12 @@
       color: var(--muted);
     }
 
-    input, button {
+    input, button, select {
       font: inherit;
+      font-size: 16px;
     }
 
-    input {
+    input, select {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 14px;
@@ -107,7 +130,7 @@
       outline: none;
     }
 
-    input:focus {
+    input:focus, select:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
     }
@@ -151,27 +174,6 @@
       align-items: center;
     }
 
-    .tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-
-    .tab {
-      background: #e2e8f0;
-      color: var(--text);
-      border-radius: 999px;
-      padding: 10px 14px;
-      font-size: 14px;
-      font-weight: 700;
-    }
-
-    .tab.active {
-      background: var(--text);
-      color: white;
-    }
-
     .muted {
       color: var(--muted);
       font-size: 14px;
@@ -182,23 +184,6 @@
       grid-template-columns: 1fr 220px;
       gap: 10px;
       margin-bottom: 14px;
-    }
-
-    select {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 12px 14px;
-      background: #fff;
-      color: var(--text);
-      outline: none;
-      font: inherit;
-      font-size: 16px;
-    }
-
-    select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
     }
 
     .summary {
@@ -224,10 +209,12 @@
     .stat-value {
       font-size: 24px;
       font-weight: 800;
+      overflow-wrap: anywhere;
     }
 
     .table-wrap {
-      overflow: auto;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       border: 1px solid var(--line);
       border-radius: 16px;
       background: white;
@@ -236,7 +223,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 620px;
+      min-width: 0 !important;
     }
 
     th, td {
@@ -244,6 +231,7 @@
       text-align: left;
       border-bottom: 1px solid var(--line);
       font-size: 14px;
+      vertical-align: top;
     }
 
     th {
@@ -254,6 +242,7 @@
       letter-spacing: .03em;
       position: sticky;
       top: 0;
+      z-index: 1;
     }
 
     tr:last-child td { border-bottom: 0; }
@@ -264,16 +253,6 @@
       color: var(--muted);
     }
 
-    .pill {
-      display: inline-block;
-      padding: 6px 10px;
-      background: #eff6ff;
-      color: var(--primary);
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
     .footer-note {
       margin-top: 14px;
       color: var(--muted);
@@ -281,18 +260,106 @@
       line-height: 1.5;
     }
 
-    .install-tip {
+    .install-tip,
+    .info-box {
       margin-top: 10px;
       padding: 12px 14px;
       border-radius: 14px;
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
-      color: #9a3412;
       font-size: 13px;
       line-height: 1.5;
     }
 
-    @media (max-width: 920px) {
+    .install-tip {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-line);
+      color: var(--warning-text);
+    }
+
+    .info-box {
+      margin-top: 0;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+    }
+
+    .file-input {
+      display: block;
+      width: 100%;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .people-list {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      max-height: 280px;
+      overflow: auto;
+      background: #fff;
+    }
+
+    .person-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .person-row:last-child { border-bottom: 0; }
+
+    .person-name {
+      font-size: 14px;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .tiny {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .name-wrap {
+      position: relative;
+    }
+
+    .suggestions {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      max-height: 240px;
+      overflow: auto;
+      z-index: 30;
+      display: none;
+    }
+
+    .suggestions.show { display: block; }
+
+    .suggestion-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      color: var(--text);
+      border-radius: 0;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      font-weight: 600;
+    }
+
+    .suggestion-item:last-child { border-bottom: 0; }
+    .suggestion-item:hover,
+    .suggestion-item.active {
+      background: #eff6ff;
+    }
+
+    @media (max-width: 980px) {
       .grid { grid-template-columns: 1fr; }
     }
 
@@ -303,100 +370,96 @@
       .button-row button { width: 100%; }
       .filters { grid-template-columns: 1fr; }
     }
-
-    /* --- FIX iPhone / mobile --- */
-
-    html, body {
-      max-width: 100%;
-      overflow-x: hidden;
-    }
-
-    /* iPhone nie będzie przybliżał formularza */
-    input, button {
-      font-size: 16px;
-    }
-
-    /* długie nazwy nie rozwalą layoutu */
-    .stat-value {
-      overflow-wrap: anywhere;
-    }
-
-    /* tabela nie rozciąga ekranu */
-    table {
-      min-width: 0 !important;
-    }
-
-    /* lepsze przewijanie poziome tylko dla tabeli */
-    .table-wrap {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    /* opcjonalnie: ukryj kolumnę "Grupa" na małych ekranach */
-    @media (max-width: 640px) {
-      th:nth-child(2),
-      td:nth-child(2) {
-        display: none;
-      }
-    }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="header">
       <h1>Płatności za zajęcia</h1>
-      <div class="sub">Wersja pod GitHub Pages i iPhone. Dane zapisują się lokalnie w przeglądarce.</div>
+      <div class="sub">Wersja bez grup. Lista osób z CSV, podpowiedzi przy wpisywaniu i zapis lokalny w przeglądarce.</div>
     </div>
 
     <div class="grid">
-      <section class="card">
-        <h2>Dodaj płatność</h2>
-        <form id="paymentForm" class="stack">
-          <div class="row">
-            <label for="fullName">Imię i nazwisko</label>
-            <input id="fullName" name="fullName" type="text" placeholder="np. Anna Kowalska" required />
+      <div class="left-stack">
+        <section class="card">
+          <h2>Dodaj płatność</h2>
+          <form id="paymentForm" class="stack" autocomplete="off">
+            <div class="row name-wrap">
+              <label for="fullName">Imię i nazwisko</label>
+              <input id="fullName" name="fullName" type="text" placeholder="np. Anna Kowalska" required />
+              <div id="nameSuggestions" class="suggestions" role="listbox" aria-label="Podpowiedzi osób"></div>
+            </div>
+
+            <div class="row">
+              <label for="amount">Kwota</label>
+              <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="np. 150" required />
+            </div>
+
+            <div class="row">
+              <label for="date">Data</label>
+              <input id="date" name="date" type="date" required />
+            </div>
+
+            <div class="button-row">
+              <button class="btn-primary" type="submit">Zapisz płatność</button>
+              <button class="btn-secondary" type="button" id="resetFormBtn">Wyczyść</button>
+            </div>
+          </form>
+
+          <div class="install-tip">
+            Na iPhonie: otwórz stronę w Safari, potem <strong>Udostępnij → Do ekranu początkowego</strong>.
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Osoby</h2>
+            <div class="tiny" id="peopleCountLabel">0 osób</div>
           </div>
 
-          <div class="row">
-            <label for="groupName">Grupa</label>
-            <input id="groupName" name="groupName" type="text" placeholder="np. Grupa A / 5-latki / Poniedziałek 17:00" required />
-          </div>
+          <div class="stack">
+            <div class="row">
+              <label for="csvFileInput">Wczytaj CSV</label>
+              <input id="csvFileInput" class="file-input" type="file" accept=".csv,text/csv" />
+              <div class="tiny">Plik CSV powinien zawierać jedno pole: <strong>Imię i nazwisko</strong> — jedna osoba w wierszu.</div>
+            </div>
 
-          <div class="row">
-            <label for="amount">Kwota</label>
-            <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="np. 150" required />
-          </div>
+            <div class="info-box">
+              Po imporcie osoby trafiają do słownika. Potem przy wpisywaniu kilku liter imienia albo nazwiska pojawiają się podpowiedzi.
+            </div>
 
-          <div class="row">
-            <label for="date">Data</label>
-            <input id="date" name="date" type="date" required />
-          </div>
+            <div class="row">
+              <label for="newPersonInput">Dodaj osobę ręcznie</label>
+              <input id="newPersonInput" type="text" placeholder="np. Jan Nowak" />
+            </div>
 
-          <div class="button-row">
-            <button class="btn-primary" type="submit">Zapisz płatność</button>
-            <button class="btn-secondary" type="button" id="resetFormBtn">Wyczyść</button>
-          </div>
-        </form>
+            <div class="button-row" style="margin-top:0">
+              <button class="btn-success" type="button" id="addPersonBtn">Dodaj osobę</button>
+              <button class="btn-secondary" type="button" id="exportPeopleBtn">Eksport osób CSV</button>
+            </div>
 
-        <div class="install-tip">
-          Na iPhonie: otwórz stronę w Safari, potem <strong>Udostępnij → Do ekranu początkowego</strong>.
-        </div>
-      </section>
+            <div class="row">
+              <label for="peopleSearchInput">Szukaj osoby</label>
+              <input id="peopleSearchInput" type="text" placeholder="Wpisz kilka liter imienia lub nazwiska..." />
+            </div>
+
+            <div id="peopleList" class="people-list"></div>
+          </div>
+        </section>
+      </div>
 
       <section class="card">
         <div class="toolbar">
           <div>
             <h2 style="margin:0 0 4px">Lista płatności</h2>
-            <div class="muted">Każda grupa ma osobną zakładkę.</div>
+            <div class="muted">Możesz filtrować po miesiącu albo przeszukiwać listę po imieniu i nazwisku.</div>
           </div>
           <div class="button-row" style="margin:0">
-            <button class="btn-success" id="exportCurrentBtn" type="button">Eksport bieżącej grupy CSV</button>
+            <button class="btn-success" id="exportVisibleBtn" type="button">Eksport widoku CSV</button>
             <button class="btn-secondary" id="exportAllBtn" type="button">Eksport wszystkich CSV</button>
             <button class="btn-danger" id="clearAllBtn" type="button">Usuń wszystko</button>
           </div>
         </div>
-
-        <div id="tabs" class="tabs"></div>
 
         <div class="filters">
           <input id="searchInput" type="text" placeholder="Szukaj po nazwisku lub imieniu..." />
@@ -407,8 +470,8 @@
 
         <div class="summary">
           <div class="stat">
-            <div class="stat-label">Aktywna grupa</div>
-            <div class="stat-value" id="activeGroupLabel">—</div>
+            <div class="stat-label">Liczba osób w słowniku</div>
+            <div class="stat-value" id="personsValue">0</div>
           </div>
           <div class="stat">
             <div class="stat-label">Liczba wpłat</div>
@@ -425,7 +488,6 @@
             <thead>
               <tr>
                 <th>Imię i nazwisko</th>
-                <th>Grupa</th>
                 <th>Kwota</th>
                 <th>Data</th>
                 <th>Akcja</th>
@@ -437,80 +499,98 @@
         </div>
 
         <div class="footer-note">
-          CSV nie obsługuje prawdziwych zakładek jak Excel, więc eksport działa jako osobny plik CSV dla każdej grupy.
-          To jest najczytelniejsze rozwiązanie dla GitHuba i iPhone'a.
+          Dane zapisują się lokalnie w tej przeglądarce. Eksport CSV działa dla bieżącego widoku albo dla całej listy płatności.
         </div>
       </section>
     </div>
   </div>
 
   <script>
-    const STORAGE_KEY = 'platnosci-za-zajecia-v2';
-    const ACTIVE_TAB_KEY = 'platnosci-za-zajecia-active-tab';
-    const ACTIVE_MONTH_KEY = 'platnosci-za-zajecia-active-month';
-    const SEARCH_QUERY_KEY = 'platnosci-za-zajecia-search';
+    const PAYMENTS_KEY = 'platnosci-za-zajecia-v3-payments';
+    const PEOPLE_KEY = 'platnosci-za-zajecia-v3-people';
+    const ACTIVE_MONTH_KEY = 'platnosci-za-zajecia-v3-active-month';
+    const SEARCH_QUERY_KEY = 'platnosci-za-zajecia-v3-search';
+    const PEOPLE_SEARCH_KEY = 'platnosci-za-zajecia-v3-people-search';
 
     const form = document.getElementById('paymentForm');
     const fullNameInput = document.getElementById('fullName');
-    const groupNameInput = document.getElementById('groupName');
     const amountInput = document.getElementById('amount');
     const dateInput = document.getElementById('date');
     const resetFormBtn = document.getElementById('resetFormBtn');
 
-    const tabsEl = document.getElementById('tabs');
+    const nameSuggestions = document.getElementById('nameSuggestions');
+
+    const csvFileInput = document.getElementById('csvFileInput');
+    const newPersonInput = document.getElementById('newPersonInput');
+    const addPersonBtn = document.getElementById('addPersonBtn');
+    const exportPeopleBtn = document.getElementById('exportPeopleBtn');
+    const peopleSearchInput = document.getElementById('peopleSearchInput');
+    const peopleList = document.getElementById('peopleList');
+    const peopleCountLabel = document.getElementById('peopleCountLabel');
+
     const tableBody = document.getElementById('tableBody');
     const emptyState = document.getElementById('emptyState');
-    const activeGroupLabel = document.getElementById('activeGroupLabel');
+    const personsValue = document.getElementById('personsValue');
     const countValue = document.getElementById('countValue');
     const sumValue = document.getElementById('sumValue');
     const searchInput = document.getElementById('searchInput');
     const monthFilter = document.getElementById('monthFilter');
 
-    const exportCurrentBtn = document.getElementById('exportCurrentBtn');
+    const exportVisibleBtn = document.getElementById('exportVisibleBtn');
     const exportAllBtn = document.getElementById('exportAllBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
 
     dateInput.value = new Date().toISOString().split('T')[0];
 
-    let payments = loadPayments();
-    let activeGroup = localStorage.getItem(ACTIVE_TAB_KEY) || '';
+    let payments = loadJson(PAYMENTS_KEY, []);
+    let people = loadJson(PEOPLE_KEY, []);
     let activeMonth = localStorage.getItem(ACTIVE_MONTH_KEY) || '';
     let searchQuery = localStorage.getItem(SEARCH_QUERY_KEY) || '';
+    let peopleSearchQuery = localStorage.getItem(PEOPLE_SEARCH_KEY) || '';
+    let activeSuggestionIndex = -1;
 
     searchInput.value = searchQuery;
+    peopleSearchInput.value = peopleSearchQuery;
 
-    function loadPayments() {
+    function loadJson(key, fallback) {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
       } catch {
-        return [];
+        return fallback;
       }
     }
 
     function savePayments() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payments));
+      localStorage.setItem(PAYMENTS_KEY, JSON.stringify(payments));
     }
 
-    function saveActiveGroup() {
-      localStorage.setItem(ACTIVE_TAB_KEY, activeGroup);
+    function savePeople() {
+      localStorage.setItem(PEOPLE_KEY, JSON.stringify(people));
     }
 
-    function saveActiveMonth() {
-      localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
+    function normalizeName(name) {
+      return String(name || '')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
 
-    function saveSearchQuery() {
-      localStorage.setItem(SEARCH_QUERY_KEY, searchQuery);
+    function normalizeCompare(value) {
+      return String(value || '')
+        .toLocaleLowerCase('pl')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
     }
 
-    function normalizeGroup(group) {
-      return group.trim();
-    }
-
-    function getGroups() {
-      return [...new Set(payments.map(p => p.group).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b, 'pl'));
+    function uniqueSortedPeople(names) {
+      const map = new Map();
+      names.forEach(name => {
+        const normalized = normalizeName(name);
+        if (!normalized) return;
+        const key = normalizeCompare(normalized);
+        if (!map.has(key)) map.set(key, normalized);
+      });
+      return Array.from(map.values()).sort((a, b) => a.localeCompare(b, 'pl'));
     }
 
     function formatPLN(value) {
@@ -535,32 +615,24 @@
       return new Intl.DateTimeFormat('pl-PL', { month: 'long', year: 'numeric' }).format(date);
     }
 
-    function getMonthsForActiveGroup() {
-      ensureActiveGroup();
-      const rows = activeGroup ? payments.filter(p => p.group === activeGroup) : [];
-      return [...new Set(rows.map(p => getMonthValue(p.date)).filter(Boolean))]
+    function getAvailableMonths() {
+      return [...new Set(payments.map(p => getMonthValue(p.date)).filter(Boolean))]
         .sort((a, b) => b.localeCompare(a));
     }
 
     function ensureActiveMonth() {
-      const months = getMonthsForActiveGroup();
-      if (!months.length) {
-        activeMonth = '';
-        saveActiveMonth();
-        return;
-      }
+      const months = getAvailableMonths();
       if (activeMonth && !months.includes(activeMonth)) {
         activeMonth = '';
-        saveActiveMonth();
+        localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
       }
     }
 
     function renderMonthFilter() {
-      const months = getMonthsForActiveGroup();
+      const months = getAvailableMonths();
       ensureActiveMonth();
 
       monthFilter.innerHTML = '<option value="">Wszystkie miesiące</option>';
-
       months.forEach(month => {
         const option = document.createElement('option');
         option.value = month;
@@ -570,56 +642,16 @@
       });
     }
 
-    function ensureActiveGroup() {
-      const groups = getGroups();
-      if (!groups.length) {
-        activeGroup = '';
-        saveActiveGroup();
-        return;
-      }
-      if (!activeGroup || !groups.includes(activeGroup)) {
-        activeGroup = groups[0];
-        saveActiveGroup();
-      }
-    }
-
-    function renderTabs() {
-      const groups = getGroups();
-      ensureActiveGroup();
-      tabsEl.innerHTML = '';
-
-      if (!groups.length) return;
-
-      groups.forEach(group => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `tab ${group === activeGroup ? 'active' : ''}`;
-        button.textContent = group;
-        button.addEventListener('click', () => {
-          activeGroup = group;
-          saveActiveGroup();
-          activeMonth = '';
-          saveActiveMonth();
-          render();
-        });
-        tabsEl.appendChild(button);
-      });
-    }
-
     function getVisiblePayments() {
-      ensureActiveGroup();
-
-      let visible = activeGroup ? payments.filter(p => p.group === activeGroup) : [];
+      let visible = payments.slice();
 
       if (activeMonth) {
         visible = visible.filter(p => getMonthValue(p.date) === activeMonth);
       }
 
       if (searchQuery.trim()) {
-        const query = searchQuery.trim().toLocaleLowerCase('pl');
-        visible = visible.filter(p =>
-          String(p.fullName || '').toLocaleLowerCase('pl').includes(query)
-        );
+        const query = normalizeCompare(searchQuery);
+        visible = visible.filter(p => normalizeCompare(p.fullName).includes(query));
       }
 
       return visible;
@@ -629,9 +661,10 @@
       const visible = getVisiblePayments();
       const total = visible.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
-      activeGroupLabel.textContent = activeGroup || '—';
+      personsValue.textContent = String(people.length);
       countValue.textContent = String(visible.length);
       sumValue.textContent = formatPLN(total);
+      peopleCountLabel.textContent = `${people.length} ${people.length === 1 ? 'osoba' : 'osób'}`;
     }
 
     function renderTable() {
@@ -647,7 +680,6 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${escapeHtml(item.fullName)}</strong></td>
-          <td><span class="pill">${escapeHtml(item.group)}</span></td>
           <td>${formatPLN(item.amount)}</td>
           <td>${formatDate(item.date)}</td>
           <td><button class="btn-danger" type="button" data-id="${item.id}">Usuń</button></td>
@@ -665,11 +697,135 @@
       });
     }
 
-    function render() {
-      renderTabs();
-      renderMonthFilter();
+    function renderPeopleList() {
+      const query = normalizeCompare(peopleSearchQuery);
+      const visiblePeople = people.filter(name => normalizeCompare(name).includes(query));
+
+      peopleList.innerHTML = '';
+
+      if (!visiblePeople.length) {
+        peopleList.innerHTML = '<div class="empty">Brak osób do wyświetlenia.</div>';
+        return;
+      }
+
+      visiblePeople.forEach(name => {
+        const row = document.createElement('div');
+        row.className = 'person-row';
+        row.innerHTML = `
+          <div>
+            <div class="person-name">${escapeHtml(name)}</div>
+          </div>
+          <button class="btn-danger" type="button" data-person="${escapeHtmlAttr(name)}">Usuń</button>
+        `;
+        peopleList.appendChild(row);
+      });
+
+      peopleList.querySelectorAll('button[data-person]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const personName = btn.getAttribute('data-person');
+          removePerson(personName);
+        });
+      });
+    }
+
+    function renderNameSuggestions() {
+      const query = normalizeName(fullNameInput.value);
+      const normalizedQuery = normalizeCompare(query);
+
+      nameSuggestions.innerHTML = '';
+      activeSuggestionIndex = -1;
+
+      if (!normalizedQuery || normalizedQuery.length < 2) {
+        nameSuggestions.classList.remove('show');
+        return;
+      }
+
+      const matches = people
+        .filter(name => normalizeCompare(name).includes(normalizedQuery))
+        .slice(0, 8);
+
+      if (!matches.length) {
+        nameSuggestions.classList.remove('show');
+        return;
+      }
+
+      matches.forEach((name, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'suggestion-item';
+        button.textContent = name;
+        button.setAttribute('data-index', String(index));
+        button.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          applySuggestedName(name);
+        });
+        nameSuggestions.appendChild(button);
+      });
+
+      nameSuggestions.classList.add('show');
+    }
+
+    function highlightSuggestion(index) {
+      const items = Array.from(nameSuggestions.querySelectorAll('.suggestion-item'));
+      items.forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+      });
+      activeSuggestionIndex = index;
+    }
+
+    function applySuggestedName(name) {
+      fullNameInput.value = name;
+      nameSuggestions.classList.remove('show');
+      activeSuggestionIndex = -1;
+      amountInput.focus();
+    }
+
+    function hideSuggestions() {
+      nameSuggestions.classList.remove('show');
+      activeSuggestionIndex = -1;
+    }
+
+    function ensurePersonExists(name) {
+      const normalized = normalizeName(name);
+      if (!normalized) return;
+      const exists = people.some(person => normalizeCompare(person) === normalizeCompare(normalized));
+      if (!exists) {
+        people = uniqueSortedPeople([...people, normalized]);
+        savePeople();
+      }
+    }
+
+    function addPerson(name) {
+      const normalized = normalizeName(name);
+      if (!normalized) {
+        alert('Podaj imię i nazwisko.');
+        return false;
+      }
+
+      const existed = people.some(person => normalizeCompare(person) === normalizeCompare(normalized));
+      if (existed) {
+        alert('Taka osoba już istnieje.');
+        return false;
+      }
+
+      people = uniqueSortedPeople([...people, normalized]);
+      savePeople();
       renderSummary();
-      renderTable();
+      renderPeopleList();
+      renderNameSuggestions();
+      return true;
+    }
+
+    function removePerson(name) {
+      const normalized = normalizeName(name);
+      const confirmed = confirm(`Usunąć osobę: ${normalized}?\\n\\nIstniejące płatności tej osoby pozostaną na liście.`);
+      if (!confirmed) return;
+
+      people = people.filter(person => normalizeCompare(person) !== normalizeCompare(normalized));
+      savePeople();
+      renderSummary();
+      renderPeopleList();
+      renderNameSuggestions();
     }
 
     function escapeHtml(str) {
@@ -681,6 +837,10 @@
         .replaceAll("'", '&#039;');
     }
 
+    function escapeHtmlAttr(str) {
+      return escapeHtml(str);
+    }
+
     function csvEscape(value) {
       const stringValue = String(value ?? '');
       if (stringValue.includes(';') || stringValue.includes('"') || stringValue.includes('\n')) {
@@ -689,9 +849,15 @@
       return stringValue;
     }
 
-    function toCsv(rows) {
-      const header = ['Imię i nazwisko', 'Grupa', 'Kwota', 'Data'];
-      const lines = [header, ...rows.map(item => [item.fullName, item.group, String(item.amount), item.date])];
+    function toPaymentsCsv(rows) {
+      const header = ['Imię i nazwisko', 'Kwota', 'Data'];
+      const lines = [header, ...rows.map(item => [item.fullName, String(item.amount), item.date])];
+      return lines.map(cols => cols.map(csvEscape).join(';')).join('\n');
+    }
+
+    function toPeopleCsv(rows) {
+      const header = ['Imię i nazwisko'];
+      const lines = [header, ...rows.map(name => [name])];
       return lines.map(cols => cols.map(csvEscape).join(';')).join('\n');
     }
 
@@ -707,24 +873,51 @@
       URL.revokeObjectURL(url);
     }
 
-    function sanitizeFilename(name) {
-      return name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'grupa';
+    function parseCsvNames(text) {
+      const rows = text
+        .replace(/^\uFEFF/, '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
+      if (!rows.length) return [];
+
+      return rows
+        .map((line, index) => {
+          let value = line;
+
+          if (line.includes(';')) {
+            value = line.split(';')[0];
+          } else if (line.includes(',')) {
+            value = line.split(',')[0];
+          }
+
+          value = value.trim().replace(/^"|"$/g, '').trim();
+
+          if (index === 0 && normalizeCompare(value) === normalizeCompare('Imię i nazwisko')) {
+            return '';
+          }
+
+          return normalizeName(value);
+        })
+        .filter(Boolean);
+    }
+
+    function render() {
+      renderMonthFilter();
+      renderSummary();
+      renderTable();
+      renderPeopleList();
     }
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
 
-      const fullName = fullNameInput.value.trim();
-      const group = normalizeGroup(groupNameInput.value);
+      const fullName = normalizeName(fullNameInput.value);
       const amount = Number(amountInput.value);
       const date = dateInput.value;
 
-      if (!fullName || !group || !date || Number.isNaN(amount)) {
+      if (!fullName || !date || Number.isNaN(amount)) {
         alert('Uzupełnij wszystkie pola.');
         return;
       }
@@ -732,93 +925,185 @@
       const payment = {
         id: crypto.randomUUID(),
         fullName,
-        group,
         amount: Number(amount.toFixed(2)),
         date
       };
 
       payments.push(payment);
-      activeGroup = group;
-      activeMonth = getMonthValue(date);
       savePayments();
-      saveActiveGroup();
-      saveActiveMonth();
+
+      ensurePersonExists(fullName);
+      activeMonth = getMonthValue(date);
+      localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
+
       render();
 
       fullNameInput.value = '';
       amountInput.value = '';
+      hideSuggestions();
       fullNameInput.focus();
     });
 
     resetFormBtn.addEventListener('click', () => {
       form.reset();
       dateInput.value = new Date().toISOString().split('T')[0];
+      hideSuggestions();
+    });
+
+    addPersonBtn.addEventListener('click', () => {
+      if (addPerson(newPersonInput.value)) {
+        newPersonInput.value = '';
+        newPersonInput.focus();
+      }
+    });
+
+    newPersonInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addPersonBtn.click();
+      }
+    });
+
+    peopleSearchInput.addEventListener('input', () => {
+      peopleSearchQuery = peopleSearchInput.value;
+      localStorage.setItem(PEOPLE_SEARCH_KEY, peopleSearchQuery);
+      renderPeopleList();
     });
 
     searchInput.addEventListener('input', () => {
       searchQuery = searchInput.value;
-      saveSearchQuery();
+      localStorage.setItem(SEARCH_QUERY_KEY, searchQuery);
       renderSummary();
       renderTable();
     });
 
     monthFilter.addEventListener('change', () => {
       activeMonth = monthFilter.value;
-      saveActiveMonth();
+      localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
       renderSummary();
       renderTable();
     });
 
-    exportCurrentBtn.addEventListener('click', () => {
+    exportVisibleBtn.addEventListener('click', () => {
       const visible = getVisiblePayments();
-      if (!visible.length || !activeGroup) {
-        alert('Brak danych do eksportu w tej grupie.');
+      if (!visible.length) {
+        alert('Brak danych do eksportu w bieżącym widoku.');
         return;
       }
 
-      const monthSuffix = activeMonth ? `-${sanitizeFilename(activeMonth)}` : '';
-      downloadCsv(`platnosci-${sanitizeFilename(activeGroup)}${monthSuffix}.csv`, toCsv(visible));
+      const suffix = activeMonth ? `-${activeMonth}` : '-wszystkie';
+      downloadCsv(`platnosci${suffix}.csv`, toPaymentsCsv(visible));
     });
 
     exportAllBtn.addEventListener('click', () => {
-      const groups = getGroups();
-      if (!groups.length) {
+      if (!payments.length) {
         alert('Brak danych do eksportu.');
         return;
       }
+      downloadCsv('platnosci-wszystkie.csv', toPaymentsCsv(payments));
+    });
 
-      groups.forEach((group, index) => {
-        const rows = payments.filter(p => p.group === group);
-        setTimeout(() => {
-          downloadCsv(`platnosci-${sanitizeFilename(group)}.csv`, toCsv(rows));
-        }, index * 250);
-      });
+    exportPeopleBtn.addEventListener('click', () => {
+      if (!people.length) {
+        alert('Brak osób do eksportu.');
+        return;
+      }
+      downloadCsv('osoby.csv', toPeopleCsv(people));
     });
 
     clearAllBtn.addEventListener('click', () => {
-      const confirmed = confirm('Na pewno usunąć wszystkie wpisy? Tej operacji nie można cofnąć.');
+      const confirmed = confirm('Na pewno usunąć wszystkie płatności i wszystkie osoby? Tej operacji nie można cofnąć.');
       if (!confirmed) return;
+
       payments = [];
-      activeGroup = '';
+      people = [];
       activeMonth = '';
       searchQuery = '';
+      peopleSearchQuery = '';
       searchInput.value = '';
-      savePayments();
-      saveActiveGroup();
-      saveActiveMonth();
-      saveSearchQuery();
+      peopleSearchInput.value = '';
+      localStorage.removeItem(PAYMENTS_KEY);
+      localStorage.removeItem(PEOPLE_KEY);
+      localStorage.removeItem(ACTIVE_MONTH_KEY);
+      localStorage.removeItem(SEARCH_QUERY_KEY);
+      localStorage.removeItem(PEOPLE_SEARCH_KEY);
+      hideSuggestions();
       render();
     });
 
-    render();
+    csvFileInput.addEventListener('change', async () => {
+      const file = csvFileInput.files?.[0];
+      if (!file) return;
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => {
-          console.error('Błąd rejestracji SW:', err);
-        });
-      });
-    }
+      try {
+        const text = await file.text();
+        const importedNames = parseCsvNames(text);
+
+        if (!importedNames.length) {
+          alert('Nie znaleziono żadnych osób w pliku CSV.');
+          csvFileInput.value = '';
+          return;
+        }
+
+        const before = people.length;
+        people = uniqueSortedPeople([...people, ...importedNames]);
+        savePeople();
+        renderSummary();
+        renderPeopleList();
+        renderNameSuggestions();
+
+        const added = people.length - before;
+        alert(`Import zakończony. Dodano ${added} ${added === 1 ? 'osobę' : 'osób'}.`);
+      } catch (error) {
+        console.error(error);
+        alert('Nie udało się wczytać pliku CSV.');
+      } finally {
+        csvFileInput.value = '';
+      }
+    });
+
+    fullNameInput.addEventListener('input', () => {
+      renderNameSuggestions();
+    });
+
+    fullNameInput.addEventListener('keydown', (e) => {
+      const items = Array.from(nameSuggestions.querySelectorAll('.suggestion-item'));
+      if (!items.length || !nameSuggestions.classList.contains('show')) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = activeSuggestionIndex < items.length - 1 ? activeSuggestionIndex + 1 : 0;
+        highlightSuggestion(next);
+      }
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = activeSuggestionIndex > 0 ? activeSuggestionIndex - 1 : items.length - 1;
+        highlightSuggestion(prev);
+      }
+
+      if (e.key === 'Enter' && activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+        e.preventDefault();
+        applySuggestedName(items[activeSuggestionIndex].textContent || '');
+      }
+
+      if (e.key === 'Escape') {
+        hideSuggestions();
+      }
+    });
+
+    fullNameInput.addEventListener('blur', () => {
+      setTimeout(() => hideSuggestions(), 120);
+    });
+
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!nameSuggestions.contains(target) && target !== fullNameInput) {
+        hideSuggestions();
+      }
+    });
+
+    render();
   </script>
 </body>
 </html>
