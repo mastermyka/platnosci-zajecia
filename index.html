@@ -954,18 +954,6 @@ select {
       renderNameSuggestions();
       return true;
     }
-      const existed = people.some(person => normalizeCompare(person) === normalizeCompare(normalized));
-      if (existed) {
-        alert('Taka osoba już istnieje.');
-        return false;
-      }
-      people = uniqueSortedPeople([...people, normalized]);
-      savePeople();
-      renderSummary();
-      renderPeopleList();
-      renderNameSuggestions();
-      return true;
-    }
     function removePerson(key) {
       const [namePart, notePart = ''] = String(key).split('||');
       const normalized = normalizeName(namePart);
