@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Płatności" />
- <link rel="manifest" href="./manifest.webmanifest" />
-<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
   <meta name="description" content="Płatności za zajęcia – lista osób z CSV, autouzupełnianie i zapis lokalny" />
   <title>Płatności za zajęcia</title>
   <style>
@@ -36,6 +37,7 @@
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
       max-width: 100%;
       overflow-x: hidden;
       background: var(--bg);
@@ -43,12 +45,21 @@
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     }
 
-    body { min-height: 100vh; }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
 
     .app {
+      width: 100%;
       max-width: 1180px;
       margin: 0 auto;
-      padding: env(safe-area-inset-top, 0) 16px env(safe-area-inset-bottom, 0);
+      padding:
+        max(12px, env(safe-area-inset-top, 0))
+        16px
+        max(16px, env(safe-area-inset-bottom, 0))
+        16px;
+      overflow-x: clip;
     }
 
     .header {
@@ -70,19 +81,23 @@
       margin-top: 6px;
       color: var(--muted);
       font-size: 14px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: 400px 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
       gap: 16px;
       margin: 16px 0 32px;
       align-items: start;
     }
 
-    .left-stack {
+    .main-stack,
+    .side-stack {
       display: grid;
       gap: 16px;
+      min-width: 0;
     }
 
     .card {
@@ -91,6 +106,8 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 16px;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .card h2 {
@@ -111,7 +128,13 @@
     }
 
     .stack { display: grid; gap: 12px; }
-    .row { display: grid; gap: 6px; position: relative; }
+
+    .row {
+      display: grid;
+      gap: 6px;
+      position: relative;
+      min-width: 0;
+    }
 
     label {
       font-size: 13px;
@@ -126,23 +149,29 @@
 
     input, select {
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 12px 14px;
       background: #fff;
       color: var(--text);
       outline: none;
+      -webkit-appearance: none;
+      appearance: none;
     }
-input[type="date"] {
-  min-height: 48px;
-}
 
-input[type="date"]::-webkit-date-and-time-value {
-  text-align: left;
-}
     input:focus, select:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    input[type="date"] {
+      min-height: 48px;
+    }
+
+    input[type="date"]::-webkit-date-and-time-value {
+      text-align: left;
     }
 
     .button-row {
@@ -220,6 +249,7 @@ input[type="date"]::-webkit-date-and-time-value {
       font-size: 24px;
       font-weight: 800;
       overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .table-wrap {
@@ -233,7 +263,7 @@ input[type="date"]::-webkit-date-and-time-value {
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 0 !important;
+      min-width: 640px;
     }
 
     th, td {
@@ -304,7 +334,7 @@ input[type="date"]::-webkit-date-and-time-value {
     .people-list {
       border: 1px solid var(--line);
       border-radius: 16px;
-      max-height: 280px;
+      max-height: 340px;
       overflow: auto;
       background: #fff;
     }
@@ -324,6 +354,7 @@ input[type="date"]::-webkit-date-and-time-value {
       font-size: 14px;
       font-weight: 600;
       word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .tiny {
@@ -364,13 +395,16 @@ input[type="date"]::-webkit-date-and-time-value {
     }
 
     .suggestion-item:last-child { border-bottom: 0; }
+
     .suggestion-item:hover,
     .suggestion-item.active {
       background: #eff6ff;
     }
 
     @media (max-width: 980px) {
-      .grid { grid-template-columns: 1fr; }
+      .grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
 
     @media (max-width: 640px) {
@@ -379,85 +413,12 @@ input[type="date"]::-webkit-date-and-time-value {
       .toolbar { align-items: stretch; }
       .button-row button { width: 100%; }
       .filters { grid-template-columns: 1fr; }
+      .card { padding: 14px; }
+      .main-stack { order: 1; }
+      .side-stack { order: 2; }
+      th, td { padding: 10px 10px; }
+      table { min-width: 560px; }
     }
-  html, body {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-.app {
-  width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding:
-    max(12px, env(safe-area-inset-top, 0))
-    16px
-    max(16px, env(safe-area-inset-bottom, 0))
-    16px;
-  overflow-x: clip;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
-  gap: 16px;
-}
-
-.left-stack,
-.card,
-.row {
-  min-width: 0;
-}
-
-.card {
-  overflow: hidden;
-}
-
-.sub,
-.person-name,
-.stat-value {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-input,
-select {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-@media (max-width: 980px) {
-  .grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .card {
-    padding: 14px;
-  }
-
-  .filters {
-    grid-template-columns: 1fr;
-  }
-
-  .button-row button {
-    width: 100%;
-  }
-
-  th, td {
-    padding: 10px 10px;
-  }
-}
   </style>
 </head>
 <body>
@@ -468,7 +429,7 @@ select {
     </div>
 
     <div class="grid">
-      <div class="left-stack">
+      <section class="main-stack">
         <section class="card">
           <h2>Dodaj płatność</h2>
           <form id="paymentForm" class="stack" autocomplete="off">
@@ -506,6 +467,64 @@ select {
         </section>
 
         <section class="card">
+          <div class="toolbar">
+            <div>
+              <h2 style="margin:0 0 4px">Lista płatności</h2>
+              <div class="muted">Możesz filtrować po miesiącu albo przeszukiwać listę po imieniu i nazwisku.</div>
+            </div>
+            <div class="button-row" style="margin:0">
+              <button class="btn-success" id="exportVisibleBtn" type="button">Eksport widoku CSV</button>
+              <button class="btn-secondary" id="exportAllBtn" type="button">Eksport wszystkich CSV</button>
+              <button class="btn-danger" id="clearAllBtn" type="button">Usuń wszystko</button>
+            </div>
+          </div>
+
+          <div class="filters">
+            <input id="searchInput" type="text" placeholder="Szukaj po nazwisku lub imieniu..." />
+            <select id="monthFilter">
+              <option value="">Wszystkie miesiące</option>
+            </select>
+          </div>
+
+          <div class="summary">
+            <div class="stat">
+              <div class="stat-label">Liczba osób w słowniku</div>
+              <div class="stat-value" id="personsValue">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Liczba wpłat</div>
+              <div class="stat-value" id="countValue">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Suma</div>
+              <div class="stat-value" id="sumValue">0,00 zł</div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Imię i nazwisko</th>
+                  <th>Notatka</th>
+                  <th>Kwota</th>
+                  <th>Data</th>
+                  <th>Akcja</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty">Brak wpisów. Dodaj pierwszą płatność.</div>
+          </div>
+
+          <div class="footer-note">
+            Dane zapisują się lokalnie w tej przeglądarce. Eksport CSV działa dla bieżącego widoku albo dla całej listy płatności.
+          </div>
+        </section>
+      </section>
+
+      <aside class="side-stack">
+        <section class="card">
           <div class="card-head">
             <h2>Osoby</h2>
             <div class="tiny" id="peopleCountLabel">0 osób</div>
@@ -515,11 +534,11 @@ select {
             <div class="row">
               <label for="csvFileInput">Wczytaj CSV</label>
               <input id="csvFileInput" class="file-input" type="file" accept=".csv,text/csv" />
-              <div class="tiny">Plik CSV powinien zawierać jedno pole: <strong>Imię i nazwisko</strong> — jedna osoba w wierszu.</div>
+              <div class="tiny">Plik CSV może zawierać kolumny: <strong>Imię i nazwisko</strong> oraz opcjonalnie <strong>Notatka</strong>.</div>
             </div>
 
             <div class="info-box">
-              Po imporcie osoby trafiają do słownika. Potem przy wpisywaniu kilku liter imienia albo nazwiska pojawiają się podpowiedzi.
+              Po imporcie osoby trafiają do słownika. Jeśli istnieją dwie osoby o tym samym imieniu i nazwisku, trzeba dodać notatkę rozróżniającą.
             </div>
 
             <div class="row">
@@ -545,80 +564,23 @@ select {
             <div id="peopleList" class="people-list"></div>
           </div>
         </section>
-      </div>
-
-      <section class="card">
-        <div class="toolbar">
-          <div>
-            <h2 style="margin:0 0 4px">Lista płatności</h2>
-            <div class="muted">Możesz filtrować po miesiącu albo przeszukiwać listę po imieniu i nazwisku.</div>
-          </div>
-          <div class="button-row" style="margin:0">
-            <button class="btn-success" id="exportVisibleBtn" type="button">Eksport widoku CSV</button>
-            <button class="btn-secondary" id="exportAllBtn" type="button">Eksport wszystkich CSV</button>
-            <button class="btn-danger" id="clearAllBtn" type="button">Usuń wszystko</button>
-          </div>
-        </div>
-
-        <div class="filters">
-          <input id="searchInput" type="text" placeholder="Szukaj po nazwisku lub imieniu..." />
-          <select id="monthFilter">
-            <option value="">Wszystkie miesiące</option>
-          </select>
-        </div>
-
-        <div class="summary">
-          <div class="stat">
-            <div class="stat-label">Liczba osób w słowniku</div>
-            <div class="stat-value" id="personsValue">0</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Liczba wpłat</div>
-            <div class="stat-value" id="countValue">0</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Suma</div>
-            <div class="stat-value" id="sumValue">0,00 zł</div>
-          </div>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Imię i nazwisko</th>
-                <th>Notatka</th>
-                <th>Kwota</th>
-                <th>Data</th>
-                <th>Akcja</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
-          <div id="emptyState" class="empty">Brak wpisów. Dodaj pierwszą płatność.</div>
-        </div>
-
-        <div class="footer-note">
-          Dane zapisują się lokalnie w tej przeglądarce. Eksport CSV działa dla bieżącego widoku albo dla całej listy płatności.
-        </div>
-      </section>
+      </aside>
     </div>
   </div>
 
   <script>
-    const PAYMENTS_KEY = 'platnosci-za-zajecia-v3-payments';
-    const PEOPLE_KEY = 'platnosci-za-zajecia-v3-people';
-    const ACTIVE_MONTH_KEY = 'platnosci-za-zajecia-v3-active-month';
-    const SEARCH_QUERY_KEY = 'platnosci-za-zajecia-v3-search';
-    const PEOPLE_SEARCH_KEY = 'platnosci-za-zajecia-v3-people-search';
+    const PAYMENTS_KEY = 'platnosci-za-zajecia-v4-payments';
+    const PEOPLE_KEY = 'platnosci-za-zajecia-v4-people';
+    const ACTIVE_MONTH_KEY = 'platnosci-za-zajecia-v4-active-month';
+    const SEARCH_QUERY_KEY = 'platnosci-za-zajecia-v4-search';
+    const PEOPLE_SEARCH_KEY = 'platnosci-za-zajecia-v4-people-search';
 
     const form = document.getElementById('paymentForm');
     const fullNameInput = document.getElementById('fullName');
-    const amountInput = document.getElementById('amount');
     const personNoteInput = document.getElementById('personNote');
+    const amountInput = document.getElementById('amount');
     const dateInput = document.getElementById('date');
     const resetFormBtn = document.getElementById('resetFormBtn');
-
     const nameSuggestions = document.getElementById('nameSuggestions');
 
     const csvFileInput = document.getElementById('csvFileInput');
@@ -642,17 +604,25 @@ select {
     const exportAllBtn = document.getElementById('exportAllBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
 
-    dateInput.value = new Date().toISOString().split('T')[0];
-
     let payments = loadJson(PAYMENTS_KEY, []);
-    let people = loadJson(PEOPLE_KEY, []);
+    let people = normalizePeople(loadJson(PEOPLE_KEY, []));
     let activeMonth = localStorage.getItem(ACTIVE_MONTH_KEY) || '';
     let searchQuery = localStorage.getItem(SEARCH_QUERY_KEY) || '';
     let peopleSearchQuery = localStorage.getItem(PEOPLE_SEARCH_KEY) || '';
     let activeSuggestionIndex = -1;
+    let currentSuggestions = [];
 
     searchInput.value = searchQuery;
     peopleSearchInput.value = peopleSearchQuery;
+    dateInput.value = getTodayLocalISO();
+
+    function getTodayLocalISO() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
 
     function loadJson(key, fallback) {
       try {
@@ -672,9 +642,7 @@ select {
     }
 
     function normalizeName(name) {
-      return String(name || '')
-        .replace(/\s+/g, ' ')
-        .trim();
+      return String(name || '').replace(/\s+/g, ' ').trim();
     }
 
     function normalizeCompare(value) {
@@ -684,15 +652,44 @@ select {
         .replace(/[\u0300-\u036f]/g, '');
     }
 
-    function uniqueSortedPeople(names) {
-      const map = new Map();
-      names.forEach(name => {
-        const normalized = normalizeName(name);
-        if (!normalized) return;
-        const key = normalizeCompare(normalized);
-        if (!map.has(key)) map.set(key, normalized);
+    function normalizePeople(raw) {
+      if (!Array.isArray(raw)) return [];
+
+      const result = [];
+      raw.forEach(item => {
+        if (typeof item === 'string') {
+          const fullName = normalizeName(item);
+          if (!fullName) return;
+          if (!result.some(person => normalizeCompare(person.fullName) === normalizeCompare(fullName) && !person.note)) {
+            result.push({ fullName, note: '' });
+          }
+          return;
+        }
+
+        const fullName = normalizeName(item?.fullName);
+        const note = normalizeName(item?.note || '');
+        if (!fullName) return;
+
+        const exists = result.some(person =>
+          normalizeCompare(person.fullName) === normalizeCompare(fullName) &&
+          normalizeCompare(person.note) === normalizeCompare(note)
+        );
+
+        if (!exists) {
+          result.push({ fullName, note });
+        }
       });
-      return Array.from(map.values()).sort((a, b) => a.localeCompare(b, 'pl'));
+
+      return result.sort((a, b) => {
+        const byName = a.fullName.localeCompare(b.fullName, 'pl');
+        if (byName !== 0) return byName;
+        return a.note.localeCompare(b.note, 'pl');
+      });
+    }
+
+    function sortAndSavePeople() {
+      people = normalizePeople(people);
+      savePeople();
     }
 
     function formatPLN(value) {
@@ -753,7 +750,7 @@ select {
 
       if (searchQuery.trim()) {
         const query = normalizeCompare(searchQuery);
-        visible = visible.filter(p => normalizeCompare(p.fullName).includes(query));
+        visible = visible.filter(p => normalizeCompare(`${p.fullName} ${p.personNote || ''}`).includes(query));
       }
 
       return visible;
@@ -802,11 +799,9 @@ select {
 
     function renderPeopleList() {
       const query = normalizeCompare(peopleSearchQuery);
-      const visiblePeople = people.filter(person => {
-        const fullName = typeof person === 'string' ? person : person.fullName;
-        const note = typeof person === 'string' ? '' : (person.note || '');
-        return normalizeCompare(`${fullName} ${note}`).includes(query);
-      });
+      const visiblePeople = people.filter(person =>
+        normalizeCompare(`${person.fullName} ${person.note}`).includes(query)
+      );
 
       peopleList.innerHTML = '';
 
@@ -816,15 +811,13 @@ select {
       }
 
       visiblePeople.forEach(person => {
-        const fullName = typeof person === 'string' ? person : person.fullName;
-        const note = typeof person === 'string' ? '' : (person.note || '');
-        const key = typeof person === 'string' ? fullName : `${person.fullName}||${person.note || ''}`;
+        const key = `${person.fullName}||${person.note || ''}`;
         const row = document.createElement('div');
         row.className = 'person-row';
         row.innerHTML = `
           <div>
-            <div class="person-name">${escapeHtml(fullName)}</div>
-            <div class="tiny">${note ? escapeHtml(note) : 'Brak notatki'}</div>
+            <div class="person-name">${escapeHtml(person.fullName)}</div>
+            <div class="tiny">${person.note ? escapeHtml(person.note) : 'Brak notatki'}</div>
           </div>
           <button class="btn-danger" type="button" data-person="${escapeHtmlAttr(key)}">Usuń</button>
         `;
@@ -833,8 +826,7 @@ select {
 
       peopleList.querySelectorAll('button[data-person]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const personName = btn.getAttribute('data-person');
-          removePerson(personName);
+          removePerson(btn.getAttribute('data-person'));
         });
       });
     }
@@ -845,23 +837,23 @@ select {
 
       nameSuggestions.innerHTML = '';
       activeSuggestionIndex = -1;
+      currentSuggestions = [];
 
       if (!normalizedQuery || normalizedQuery.length < 2) {
         nameSuggestions.classList.remove('show');
         return;
       }
 
-      const matches = people
-        .map(person => typeof person === 'string' ? { fullName: person, note: '' } : person)
-        .filter(person => normalizeCompare(`${person.fullName} ${person.note || ''}`).includes(normalizedQuery))
+      currentSuggestions = people
+        .filter(person => normalizeCompare(`${person.fullName} ${person.note}`).includes(normalizedQuery))
         .slice(0, 8);
 
-      if (!matches.length) {
+      if (!currentSuggestions.length) {
         nameSuggestions.classList.remove('show');
         return;
       }
 
-      matches.forEach((person, index) => {
+      currentSuggestions.forEach((person, index) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'suggestion-item';
@@ -886,48 +878,48 @@ select {
     }
 
     function applySuggestedName(person) {
-      const fullName = typeof person === 'string' ? person : person.fullName;
-      const note = typeof person === 'string' ? '' : (person.note || '');
-      fullNameInput.value = fullName;
-      personNoteInput.value = note;
+      fullNameInput.value = person.fullName;
+      personNoteInput.value = person.note || '';
       nameSuggestions.classList.remove('show');
       activeSuggestionIndex = -1;
+      currentSuggestions = [];
       amountInput.focus();
     }
 
     function hideSuggestions() {
       nameSuggestions.classList.remove('show');
       activeSuggestionIndex = -1;
+      currentSuggestions = [];
     }
 
     function ensurePersonExists(name, note = '') {
-      const normalizedName = normalizeName(name);
+      const fullName = normalizeName(name);
       const normalizedNote = normalizeName(note);
-      if (!normalizedName) return;
+      if (!fullName) return;
 
-      const exists = people.some(person => {
-        const fullName = typeof person === 'string' ? person : person.fullName;
-        const personNote = typeof person === 'string' ? '' : (person.note || '');
-        return normalizeCompare(fullName) === normalizeCompare(normalizedName)
-          && normalizeCompare(personNote) === normalizeCompare(normalizedNote);
-      });
+      const exists = people.some(person =>
+        normalizeCompare(person.fullName) === normalizeCompare(fullName) &&
+        normalizeCompare(person.note) === normalizeCompare(normalizedNote)
+      );
 
       if (!exists) {
-        people = [...people, { fullName: normalizedName, note: normalizedNote }];
-        savePeople();
+        people.push({ fullName, note: normalizedNote });
+        sortAndSavePeople();
       }
+    }
+
     function addPerson(name, note = '') {
-      const normalized = normalizeName(name);
+      const fullName = normalizeName(name);
       const normalizedNote = normalizeName(note);
-      if (!normalized) {
+
+      if (!fullName) {
         alert('Podaj imię i nazwisko.');
         return false;
       }
 
-      const sameNameExists = people.some(person => {
-        const fullName = typeof person === 'string' ? person : person.fullName;
-        return normalizeCompare(fullName) === normalizeCompare(normalized);
-      });
+      const sameNameExists = people.some(person =>
+        normalizeCompare(person.fullName) === normalizeCompare(fullName)
+      );
 
       if (sameNameExists && !normalizedNote) {
         alert('Taka osoba już istnieje. Dodaj notatkę rozróżniającą w osobnym polu.');
@@ -935,50 +927,41 @@ select {
         return false;
       }
 
-      const exactExists = people.some(person => {
-        const fullName = typeof person === 'string' ? person : person.fullName;
-        const personNote = typeof person === 'string' ? '' : (person.note || '');
-        return normalizeCompare(fullName) === normalizeCompare(normalized)
-          && normalizeCompare(personNote) === normalizeCompare(normalizedNote);
-      });
+      const exactExists = people.some(person =>
+        normalizeCompare(person.fullName) === normalizeCompare(fullName) &&
+        normalizeCompare(person.note) === normalizeCompare(normalizedNote)
+      );
 
       if (exactExists) {
         alert('Taka osoba już istnieje.');
         return false;
       }
 
-      people = [...people, { fullName: normalized, note: normalizedNote }];
-      savePeople();
+      people.push({ fullName, note: normalizedNote });
+      sortAndSavePeople();
       renderSummary();
       renderPeopleList();
       renderNameSuggestions();
       return true;
     }
+
     function removePerson(key) {
       const [namePart, notePart = ''] = String(key).split('||');
       const normalized = normalizeName(namePart);
       const normalizedNote = normalizeName(notePart);
       const label = normalizedNote ? `${normalized} — ${normalizedNote}` : normalized;
-      const confirmed = confirm(`Usunąć osobę: ${label}?
 
-Istniejące płatności tej osoby pozostaną na liście.`);
+      const confirmed = confirm(
+        `Usunąć osobę: ${label}?\n\nIstniejące płatności tej osoby pozostaną na liście.`
+      );
       if (!confirmed) return;
 
-      people = people.filter(person => {
-        const fullName = typeof person === 'string' ? person : person.fullName;
-        const personNote = typeof person === 'string' ? '' : (person.note || '');
-        return !(normalizeCompare(fullName) === normalizeCompare(normalized)
-          && normalizeCompare(personNote) === normalizeCompare(normalizedNote));
-      });
-      savePeople();
-      renderSummary();
-      renderPeopleList();
-      renderNameSuggestions();
-    }?\\n\\nIstniejące płatności tej osoby pozostaną na liście.`);
-      if (!confirmed) return;
+      people = people.filter(person => !(
+        normalizeCompare(person.fullName) === normalizeCompare(normalized) &&
+        normalizeCompare(person.note) === normalizeCompare(normalizedNote)
+      ));
 
-      people = people.filter(person => normalizeCompare(person) !== normalizeCompare(normalized));
-      savePeople();
+      sortAndSavePeople();
       renderSummary();
       renderPeopleList();
       renderNameSuggestions();
@@ -1008,16 +991,13 @@ Istniejące płatności tej osoby pozostaną na liście.`);
     function toPaymentsCsv(rows) {
       const header = ['Imię i nazwisko', 'Notatka', 'Kwota', 'Data'];
       const lines = [header, ...rows.map(item => [item.fullName, item.personNote || '', String(item.amount), item.date])];
-      return lines.map(cols => cols.map(csvEscape).join(';')).join('
-');
+      return lines.map(cols => cols.map(csvEscape).join(';')).join('\n');
     }
 
     function toPeopleCsv(rows) {
-      const normalizedRows = rows.map(person => typeof person === 'string' ? { fullName: person, note: '' } : person);
       const header = ['Imię i nazwisko', 'Notatka'];
-      const lines = [header, ...normalizedRows.map(person => [person.fullName, person.note || ''])];
-      return lines.map(cols => cols.map(csvEscape).join(';')).join('
-');
+      const lines = [header, ...rows.map(person => [person.fullName, person.note || ''])];
+      return lines.map(cols => cols.map(csvEscape).join(';')).join('\n');
     }
 
     function downloadCsv(filename, content) {
@@ -1032,29 +1012,46 @@ Istniejące płatności tej osoby pozostaną na liście.`);
       URL.revokeObjectURL(url);
     }
 
-    function parseCsvNames(text) {
-      const rows = text
-        .replace(/^﻿/, '')
-        .split(/
-?
-/)
-        .map(line => line.trim())
-        .filter(Boolean);
+    function parseCsvLine(line, separator) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
 
+      for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+        const next = line[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && next === '"') {
+            current += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === separator && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+
+      result.push(current);
+      return result;
+    }
+
+    function parseCsvNames(text) {
+      const cleaned = String(text || '').replace(/^\uFEFF/, '');
+      const rows = cleaned.split(/\r?\n/).filter(line => line.trim().length > 0);
       if (!rows.length) return [];
+
+      const separator = rows.some(line => line.includes(';')) ? ';' : ',';
 
       return rows
         .map((line, index) => {
-          let cols = [line];
-
-          if (line.includes(';')) {
-            cols = line.split(';');
-          } else if (line.includes(',')) {
-            cols = line.split(',');
-          }
-
-          const fullName = normalizeName((cols[0] || '').trim().replace(/^"|"$/g, ''));
-          const note = normalizeName((cols[1] || '').trim().replace(/^"|"$/g, ''));
+          const cols = parseCsvLine(line, separator).map(value => normalizeName(value));
+          const fullName = cols[0] || '';
+          const note = cols[1] || '';
 
           if (index === 0 && normalizeCompare(fullName) === normalizeCompare('Imię i nazwisko')) {
             return null;
@@ -1062,19 +1059,6 @@ Istniejące płatności tej osoby pozostaną na liście.`);
 
           if (!fullName) return null;
           return { fullName, note };
-        })
-        .filter(Boolean);
-    } else if (line.includes(',')) {
-            value = line.split(',')[0];
-          }
-
-          value = value.trim().replace(/^"|"$/g, '').trim();
-
-          if (index === 0 && normalizeCompare(value) === normalizeCompare('Imię i nazwisko')) {
-            return '';
-          }
-
-          return normalizeName(value);
         })
         .filter(Boolean);
     }
@@ -1099,10 +1083,9 @@ Istniejące płatności tej osoby pozostaną na liście.`);
         return;
       }
 
-      const sameNameExists = people.some(person => {
-        const existingName = typeof person === 'string' ? person : person.fullName;
-        return normalizeCompare(existingName) === normalizeCompare(fullName);
-      });
+      const sameNameExists = people.some(person =>
+        normalizeCompare(person.fullName) === normalizeCompare(fullName)
+      );
 
       if (sameNameExists && !personNote) {
         alert('To nie jest notatka w polu imienia i nazwiska. Uzupełnij osobne pole „Notatka rozróżniająca”.');
@@ -1126,17 +1109,15 @@ Istniejące płatności tej osoby pozostaną na liście.`);
       localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
 
       render();
-
-      fullNameInput.value = '';
-      personNoteInput.value = '';
-      amountInput.value = '';
+      form.reset();
+      dateInput.value = getTodayLocalISO();
       hideSuggestions();
       fullNameInput.focus();
     });
 
     resetFormBtn.addEventListener('click', () => {
       form.reset();
-      dateInput.value = new Date().toISOString().split('T')[0];
+      dateInput.value = getTodayLocalISO();
       hideSuggestions();
     });
 
@@ -1220,6 +1201,7 @@ Istniejące płatności tej osoby pozostaną na liście.`);
       localStorage.removeItem(PEOPLE_SEARCH_KEY);
       hideSuggestions();
       render();
+      dateInput.value = getTodayLocalISO();
     });
 
     csvFileInput.addEventListener('change', async () => {
@@ -1228,16 +1210,16 @@ Istniejące płatności tej osoby pozostaną na liście.`);
 
       try {
         const text = await file.text();
-        const importedNames = parseCsvNames(text);
+        const importedPeople = parseCsvNames(text);
 
-        if (!importedNames.length) {
+        if (!importedPeople.length) {
           alert('Nie znaleziono żadnych osób w pliku CSV.');
           csvFileInput.value = '';
           return;
         }
 
         const before = people.length;
-        people = uniqueSortedPeople([...people, ...importedNames]);
+        people = normalizePeople([...people, ...importedPeople]);
         savePeople();
         renderSummary();
         renderPeopleList();
@@ -1273,13 +1255,9 @@ Istniejące płatności tej osoby pozostaną na liście.`);
         highlightSuggestion(prev);
       }
 
-      if (e.key === 'Enter' && activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+      if (e.key === 'Enter' && activeSuggestionIndex >= 0 && currentSuggestions[activeSuggestionIndex]) {
         e.preventDefault();
-        const matches = people
-          .map(person => typeof person === 'string' ? { fullName: person, note: '' } : person)
-          .filter(person => normalizeCompare(`${person.fullName} ${person.note || ''}`).includes(normalizeCompare(fullNameInput.value)))
-          .slice(0, 8);
-        if (matches[activeSuggestionIndex]) applySuggestedName(matches[activeSuggestionIndex]);
+        applySuggestedName(currentSuggestions[activeSuggestionIndex]);
       }
 
       if (e.key === 'Escape') {
@@ -1297,6 +1275,14 @@ Istniejące płatności tej osoby pozostaną na liście.`);
         hideSuggestions();
       }
     });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.error('Błąd rejestracji SW:', err);
+        });
+      });
+    }
 
     render();
   </script>
