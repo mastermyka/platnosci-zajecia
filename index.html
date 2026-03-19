@@ -177,6 +177,30 @@
       font-size: 14px;
     }
 
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      font: inherit;
+      font-size: 16px;
+    }
+
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
     .summary {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -277,42 +301,44 @@
       .summary { grid-template-columns: 1fr; }
       .toolbar { align-items: stretch; }
       .button-row button { width: 100%; }
+      .filters { grid-template-columns: 1fr; }
     }
+
     /* --- FIX iPhone / mobile --- */
 
-html, body {
-  max-width: 100%;
-  overflow-x: hidden;
-}
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
 
-/* iPhone nie będzie przybliżał formularza */
-input, button {
-  font-size: 16px;
-}
+    /* iPhone nie będzie przybliżał formularza */
+    input, button {
+      font-size: 16px;
+    }
 
-/* długie nazwy nie rozwalą layoutu */
-.stat-value {
-  overflow-wrap: anywhere;
-}
+    /* długie nazwy nie rozwalą layoutu */
+    .stat-value {
+      overflow-wrap: anywhere;
+    }
 
-/* tabela nie rozciąga ekranu */
-table {
-  min-width: 0 !important;
-}
+    /* tabela nie rozciąga ekranu */
+    table {
+      min-width: 0 !important;
+    }
 
-/* lepsze przewijanie poziome tylko dla tabeli */
-.table-wrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
+    /* lepsze przewijanie poziome tylko dla tabeli */
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
 
-/* opcjonalnie: ukryj kolumnę "Grupa" na małych ekranach */
-@media (max-width: 640px) {
-  th:nth-child(2),
-  td:nth-child(2) {
-    display: none;
-  }
-}
+    /* opcjonalnie: ukryj kolumnę "Grupa" na małych ekranach */
+    @media (max-width: 640px) {
+      th:nth-child(2),
+      td:nth-child(2) {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -372,6 +398,13 @@ table {
 
         <div id="tabs" class="tabs"></div>
 
+        <div class="filters">
+          <input id="searchInput" type="text" placeholder="Szukaj po nazwisku lub imieniu..." />
+          <select id="monthFilter">
+            <option value="">Wszystkie miesiące</option>
+          </select>
+        </div>
+
         <div class="summary">
           <div class="stat">
             <div class="stat-label">Aktywna grupa</div>
@@ -414,6 +447,8 @@ table {
   <script>
     const STORAGE_KEY = 'platnosci-za-zajecia-v2';
     const ACTIVE_TAB_KEY = 'platnosci-za-zajecia-active-tab';
+    const ACTIVE_MONTH_KEY = 'platnosci-za-zajecia-active-month';
+    const SEARCH_QUERY_KEY = 'platnosci-za-zajecia-search';
 
     const form = document.getElementById('paymentForm');
     const fullNameInput = document.getElementById('fullName');
@@ -428,6 +463,8 @@ table {
     const activeGroupLabel = document.getElementById('activeGroupLabel');
     const countValue = document.getElementById('countValue');
     const sumValue = document.getElementById('sumValue');
+    const searchInput = document.getElementById('searchInput');
+    const monthFilter = document.getElementById('monthFilter');
 
     const exportCurrentBtn = document.getElementById('exportCurrentBtn');
     const exportAllBtn = document.getElementById('exportAllBtn');
@@ -437,6 +474,10 @@ table {
 
     let payments = loadPayments();
     let activeGroup = localStorage.getItem(ACTIVE_TAB_KEY) || '';
+    let activeMonth = localStorage.getItem(ACTIVE_MONTH_KEY) || '';
+    let searchQuery = localStorage.getItem(SEARCH_QUERY_KEY) || '';
+
+    searchInput.value = searchQuery;
 
     function loadPayments() {
       try {
@@ -453,6 +494,14 @@ table {
 
     function saveActiveGroup() {
       localStorage.setItem(ACTIVE_TAB_KEY, activeGroup);
+    }
+
+    function saveActiveMonth() {
+      localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
+    }
+
+    function saveSearchQuery() {
+      localStorage.setItem(SEARCH_QUERY_KEY, searchQuery);
     }
 
     function normalizeGroup(group) {
@@ -473,6 +522,52 @@ table {
       if (!value) return '';
       const [y, m, d] = value.split('-');
       return `${d}.${m}.${y}`;
+    }
+
+    function getMonthValue(date) {
+      return String(date || '').slice(0, 7);
+    }
+
+    function getMonthLabel(monthValue) {
+      if (!monthValue) return 'Wszystkie miesiące';
+      const [year, month] = monthValue.split('-');
+      const date = new Date(Number(year), Number(month) - 1, 1);
+      return new Intl.DateTimeFormat('pl-PL', { month: 'long', year: 'numeric' }).format(date);
+    }
+
+    function getMonthsForActiveGroup() {
+      ensureActiveGroup();
+      const rows = activeGroup ? payments.filter(p => p.group === activeGroup) : [];
+      return [...new Set(rows.map(p => getMonthValue(p.date)).filter(Boolean))]
+        .sort((a, b) => b.localeCompare(a));
+    }
+
+    function ensureActiveMonth() {
+      const months = getMonthsForActiveGroup();
+      if (!months.length) {
+        activeMonth = '';
+        saveActiveMonth();
+        return;
+      }
+      if (activeMonth && !months.includes(activeMonth)) {
+        activeMonth = '';
+        saveActiveMonth();
+      }
+    }
+
+    function renderMonthFilter() {
+      const months = getMonthsForActiveGroup();
+      ensureActiveMonth();
+
+      monthFilter.innerHTML = '<option value="">Wszystkie miesiące</option>';
+
+      months.forEach(month => {
+        const option = document.createElement('option');
+        option.value = month;
+        option.textContent = getMonthLabel(month);
+        option.selected = month === activeMonth;
+        monthFilter.appendChild(option);
+      });
     }
 
     function ensureActiveGroup() {
@@ -503,6 +598,8 @@ table {
         button.addEventListener('click', () => {
           activeGroup = group;
           saveActiveGroup();
+          activeMonth = '';
+          saveActiveMonth();
           render();
         });
         tabsEl.appendChild(button);
@@ -511,7 +608,21 @@ table {
 
     function getVisiblePayments() {
       ensureActiveGroup();
-      return activeGroup ? payments.filter(p => p.group === activeGroup) : [];
+
+      let visible = activeGroup ? payments.filter(p => p.group === activeGroup) : [];
+
+      if (activeMonth) {
+        visible = visible.filter(p => getMonthValue(p.date) === activeMonth);
+      }
+
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLocaleLowerCase('pl');
+        visible = visible.filter(p =>
+          String(p.fullName || '').toLocaleLowerCase('pl').includes(query)
+        );
+      }
+
+      return visible;
     }
 
     function renderSummary() {
@@ -556,6 +667,7 @@ table {
 
     function render() {
       renderTabs();
+      renderMonthFilter();
       renderSummary();
       renderTable();
     }
@@ -627,8 +739,10 @@ table {
 
       payments.push(payment);
       activeGroup = group;
+      activeMonth = getMonthValue(date);
       savePayments();
       saveActiveGroup();
+      saveActiveMonth();
       render();
 
       fullNameInput.value = '';
@@ -641,13 +755,29 @@ table {
       dateInput.value = new Date().toISOString().split('T')[0];
     });
 
+    searchInput.addEventListener('input', () => {
+      searchQuery = searchInput.value;
+      saveSearchQuery();
+      renderSummary();
+      renderTable();
+    });
+
+    monthFilter.addEventListener('change', () => {
+      activeMonth = monthFilter.value;
+      saveActiveMonth();
+      renderSummary();
+      renderTable();
+    });
+
     exportCurrentBtn.addEventListener('click', () => {
       const visible = getVisiblePayments();
       if (!visible.length || !activeGroup) {
         alert('Brak danych do eksportu w tej grupie.');
         return;
       }
-      downloadCsv(`platnosci-${sanitizeFilename(activeGroup)}.csv`, toCsv(visible));
+
+      const monthSuffix = activeMonth ? `-${sanitizeFilename(activeMonth)}` : '';
+      downloadCsv(`platnosci-${sanitizeFilename(activeGroup)}${monthSuffix}.csv`, toCsv(visible));
     });
 
     exportAllBtn.addEventListener('click', () => {
@@ -670,8 +800,13 @@ table {
       if (!confirmed) return;
       payments = [];
       activeGroup = '';
+      activeMonth = '';
+      searchQuery = '';
+      searchInput.value = '';
       savePayments();
       saveActiveGroup();
+      saveActiveMonth();
+      saveSearchQuery();
       render();
     });
 
