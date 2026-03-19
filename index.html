@@ -7,6 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Płatności" />
+ <link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
   <meta name="description" content="Płatności za zajęcia – lista osób z CSV, autouzupełnianie i zapis lokalny" />
   <title>Płatności za zajęcia</title>
   <style>
@@ -370,6 +374,84 @@
       .button-row button { width: 100%; }
       .filters { grid-template-columns: 1fr; }
     }
+  html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding:
+    max(12px, env(safe-area-inset-top, 0))
+    16px
+    max(16px, env(safe-area-inset-bottom, 0))
+    16px;
+  overflow-x: clip;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.left-stack,
+.card,
+.row {
+  min-width: 0;
+}
+
+.card {
+  overflow: hidden;
+}
+
+.sub,
+.person-name,
+.stat-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+input,
+select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+@media (max-width: 980px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 14px;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .button-row button {
+    width: 100%;
+  }
+
+  th, td {
+    padding: 10px 10px;
+  }
+}
   </style>
 </head>
 <body>
