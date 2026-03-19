@@ -391,6 +391,12 @@
             </div>
 
             <div class="row">
+              <label for="personNote">Notatka rozróżniająca</label>
+              <input id="personNote" name="personNote" type="text" placeholder="np. środa 17:00 / siostra / starsza grupa" />
+              <div class="tiny">To jest osobne pole. Uzupełnij je tylko wtedy, gdy istnieje już ktoś o tym samym imieniu i nazwisku.</div>
+            </div>
+
+            <div class="row">
               <label for="amount">Kwota</label>
               <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="np. 150" required />
             </div>
@@ -431,6 +437,11 @@
             <div class="row">
               <label for="newPersonInput">Dodaj osobę ręcznie</label>
               <input id="newPersonInput" type="text" placeholder="np. Jan Nowak" />
+            </div>
+
+            <div class="row">
+              <label for="newPersonNoteInput">Notatka do osoby</label>
+              <input id="newPersonNoteInput" type="text" placeholder="opcjonalnie, ale wymagana przy duplikacie imienia i nazwiska" />
             </div>
 
             <div class="button-row" style="margin-top:0">
@@ -488,6 +499,7 @@
             <thead>
               <tr>
                 <th>Imię i nazwisko</th>
+                <th>Notatka</th>
                 <th>Kwota</th>
                 <th>Data</th>
                 <th>Akcja</th>
@@ -515,6 +527,7 @@
     const form = document.getElementById('paymentForm');
     const fullNameInput = document.getElementById('fullName');
     const amountInput = document.getElementById('amount');
+    const personNoteInput = document.getElementById('personNote');
     const dateInput = document.getElementById('date');
     const resetFormBtn = document.getElementById('resetFormBtn');
 
@@ -522,6 +535,7 @@
 
     const csvFileInput = document.getElementById('csvFileInput');
     const newPersonInput = document.getElementById('newPersonInput');
+    const newPersonNoteInput = document.getElementById('newPersonNoteInput');
     const addPersonBtn = document.getElementById('addPersonBtn');
     const exportPeopleBtn = document.getElementById('exportPeopleBtn');
     const peopleSearchInput = document.getElementById('peopleSearchInput');
@@ -680,6 +694,7 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${escapeHtml(item.fullName)}</strong></td>
+          <td>${item.personNote ? escapeHtml(item.personNote) : '<span class="tiny">—</span>'}</td>
           <td>${formatPLN(item.amount)}</td>
           <td>${formatDate(item.date)}</td>
           <td><button class="btn-danger" type="button" data-id="${item.id}">Usuń</button></td>
@@ -699,7 +714,11 @@
 
     function renderPeopleList() {
       const query = normalizeCompare(peopleSearchQuery);
-      const visiblePeople = people.filter(name => normalizeCompare(name).includes(query));
+      const visiblePeople = people.filter(person => {
+        const fullName = typeof person === 'string' ? person : person.fullName;
+        const note = typeof person === 'string' ? '' : (person.note || '');
+        return normalizeCompare(`${fullName} ${note}`).includes(query);
+      });
 
       peopleList.innerHTML = '';
 
@@ -708,14 +727,18 @@
         return;
       }
 
-      visiblePeople.forEach(name => {
+      visiblePeople.forEach(person => {
+        const fullName = typeof person === 'string' ? person : person.fullName;
+        const note = typeof person === 'string' ? '' : (person.note || '');
+        const key = typeof person === 'string' ? fullName : `${person.fullName}||${person.note || ''}`;
         const row = document.createElement('div');
         row.className = 'person-row';
         row.innerHTML = `
           <div>
-            <div class="person-name">${escapeHtml(name)}</div>
+            <div class="person-name">${escapeHtml(fullName)}</div>
+            <div class="tiny">${note ? escapeHtml(note) : 'Brak notatki'}</div>
           </div>
-          <button class="btn-danger" type="button" data-person="${escapeHtmlAttr(name)}">Usuń</button>
+          <button class="btn-danger" type="button" data-person="${escapeHtmlAttr(key)}">Usuń</button>
         `;
         peopleList.appendChild(row);
       });
@@ -741,7 +764,8 @@
       }
 
       const matches = people
-        .filter(name => normalizeCompare(name).includes(normalizedQuery))
+        .map(person => typeof person === 'string' ? { fullName: person, note: '' } : person)
+        .filter(person => normalizeCompare(`${person.fullName} ${person.note || ''}`).includes(normalizedQuery))
         .slice(0, 8);
 
       if (!matches.length) {
@@ -749,15 +773,15 @@
         return;
       }
 
-      matches.forEach((name, index) => {
+      matches.forEach((person, index) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'suggestion-item';
-        button.textContent = name;
+        button.textContent = person.note ? `${person.fullName} — ${person.note}` : person.fullName;
         button.setAttribute('data-index', String(index));
         button.addEventListener('mousedown', (e) => {
           e.preventDefault();
-          applySuggestedName(name);
+          applySuggestedName(person);
         });
         nameSuggestions.appendChild(button);
       });
@@ -773,8 +797,11 @@
       activeSuggestionIndex = index;
     }
 
-    function applySuggestedName(name) {
-      fullNameInput.value = name;
+    function applySuggestedName(person) {
+      const fullName = typeof person === 'string' ? person : person.fullName;
+      const note = typeof person === 'string' ? '' : (person.note || '');
+      fullNameInput.value = fullName;
+      personNoteInput.value = note;
       nameSuggestions.classList.remove('show');
       activeSuggestionIndex = -1;
       amountInput.focus();
@@ -785,22 +812,63 @@
       activeSuggestionIndex = -1;
     }
 
-    function ensurePersonExists(name) {
-      const normalized = normalizeName(name);
-      if (!normalized) return;
-      const exists = people.some(person => normalizeCompare(person) === normalizeCompare(normalized));
+    function ensurePersonExists(name, note = '') {
+      const normalizedName = normalizeName(name);
+      const normalizedNote = normalizeName(note);
+      if (!normalizedName) return;
+
+      const exists = people.some(person => {
+        const fullName = typeof person === 'string' ? person : person.fullName;
+        const personNote = typeof person === 'string' ? '' : (person.note || '');
+        return normalizeCompare(fullName) === normalizeCompare(normalizedName)
+          && normalizeCompare(personNote) === normalizeCompare(normalizedNote);
+      });
+
       if (!exists) {
-        people = uniqueSortedPeople([...people, normalized]);
+        people = [...people, { fullName: normalizedName, note: normalizedNote }];
         savePeople();
       }
     }
+    }
 
-    function addPerson(name) {
+    function addPerson(name, note = '') {
       const normalized = normalizeName(name);
+      const normalizedNote = normalizeName(note);
       if (!normalized) {
         alert('Podaj imię i nazwisko.');
         return false;
       }
+
+      const sameNameExists = people.some(person => {
+        const fullName = typeof person === 'string' ? person : person.fullName;
+        return normalizeCompare(fullName) === normalizeCompare(normalized);
+      });
+
+      if (sameNameExists && !normalizedNote) {
+        alert('Taka osoba już istnieje. Dodaj notatkę rozróżniającą w osobnym polu.');
+        newPersonNoteInput.focus();
+        return false;
+      }
+
+      const exactExists = people.some(person => {
+        const fullName = typeof person === 'string' ? person : person.fullName;
+        const personNote = typeof person === 'string' ? '' : (person.note || '');
+        return normalizeCompare(fullName) === normalizeCompare(normalized)
+          && normalizeCompare(personNote) === normalizeCompare(normalizedNote);
+      });
+
+      if (exactExists) {
+        alert('Taka osoba już istnieje.');
+        return false;
+      }
+
+      people = [...people, { fullName: normalized, note: normalizedNote }];
+      savePeople();
+      renderSummary();
+      renderPeopleList();
+      renderNameSuggestions();
+      return true;
+    }
 
       const existed = people.some(person => normalizeCompare(person) === normalizeCompare(normalized));
       if (existed) {
@@ -816,9 +884,27 @@
       return true;
     }
 
-    function removePerson(name) {
-      const normalized = normalizeName(name);
-      const confirmed = confirm(`Usunąć osobę: ${normalized}?\\n\\nIstniejące płatności tej osoby pozostaną na liście.`);
+    function removePerson(key) {
+      const [namePart, notePart = ''] = String(key).split('||');
+      const normalized = normalizeName(namePart);
+      const normalizedNote = normalizeName(notePart);
+      const label = normalizedNote ? `${normalized} — ${normalizedNote}` : normalized;
+      const confirmed = confirm(`Usunąć osobę: ${label}?
+
+Istniejące płatności tej osoby pozostaną na liście.`);
+      if (!confirmed) return;
+
+      people = people.filter(person => {
+        const fullName = typeof person === 'string' ? person : person.fullName;
+        const personNote = typeof person === 'string' ? '' : (person.note || '');
+        return !(normalizeCompare(fullName) === normalizeCompare(normalized)
+          && normalizeCompare(personNote) === normalizeCompare(normalizedNote));
+      });
+      savePeople();
+      renderSummary();
+      renderPeopleList();
+      renderNameSuggestions();
+    }?\\n\\nIstniejące płatności tej osoby pozostaną na liście.`);
       if (!confirmed) return;
 
       people = people.filter(person => normalizeCompare(person) !== normalizeCompare(normalized));
@@ -850,15 +936,18 @@
     }
 
     function toPaymentsCsv(rows) {
-      const header = ['Imię i nazwisko', 'Kwota', 'Data'];
-      const lines = [header, ...rows.map(item => [item.fullName, String(item.amount), item.date])];
-      return lines.map(cols => cols.map(csvEscape).join(';')).join('\n');
+      const header = ['Imię i nazwisko', 'Notatka', 'Kwota', 'Data'];
+      const lines = [header, ...rows.map(item => [item.fullName, item.personNote || '', String(item.amount), item.date])];
+      return lines.map(cols => cols.map(csvEscape).join(';')).join('
+');
     }
 
     function toPeopleCsv(rows) {
-      const header = ['Imię i nazwisko'];
-      const lines = [header, ...rows.map(name => [name])];
-      return lines.map(cols => cols.map(csvEscape).join(';')).join('\n');
+      const normalizedRows = rows.map(person => typeof person === 'string' ? { fullName: person, note: '' } : person);
+      const header = ['Imię i nazwisko', 'Notatka'];
+      const lines = [header, ...normalizedRows.map(person => [person.fullName, person.note || ''])];
+      return lines.map(cols => cols.map(csvEscape).join(';')).join('
+');
     }
 
     function downloadCsv(filename, content) {
@@ -875,8 +964,10 @@
 
     function parseCsvNames(text) {
       const rows = text
-        .replace(/^\uFEFF/, '')
-        .split(/\r?\n/)
+        .replace(/^﻿/, '')
+        .split(/
+?
+/)
         .map(line => line.trim())
         .filter(Boolean);
 
@@ -884,11 +975,26 @@
 
       return rows
         .map((line, index) => {
-          let value = line;
+          let cols = [line];
 
           if (line.includes(';')) {
-            value = line.split(';')[0];
+            cols = line.split(';');
           } else if (line.includes(',')) {
+            cols = line.split(',');
+          }
+
+          const fullName = normalizeName((cols[0] || '').trim().replace(/^"|"$/g, ''));
+          const note = normalizeName((cols[1] || '').trim().replace(/^"|"$/g, ''));
+
+          if (index === 0 && normalizeCompare(fullName) === normalizeCompare('Imię i nazwisko')) {
+            return null;
+          }
+
+          if (!fullName) return null;
+          return { fullName, note };
+        })
+        .filter(Boolean);
+    } else if (line.includes(',')) {
             value = line.split(',')[0];
           }
 
@@ -914,6 +1020,7 @@
       e.preventDefault();
 
       const fullName = normalizeName(fullNameInput.value);
+      const personNote = normalizeName(personNoteInput.value);
       const amount = Number(amountInput.value);
       const date = dateInput.value;
 
@@ -922,9 +1029,21 @@
         return;
       }
 
+      const sameNameExists = people.some(person => {
+        const existingName = typeof person === 'string' ? person : person.fullName;
+        return normalizeCompare(existingName) === normalizeCompare(fullName);
+      });
+
+      if (sameNameExists && !personNote) {
+        alert('To nie jest notatka w polu imienia i nazwiska. Uzupełnij osobne pole „Notatka rozróżniająca”.');
+        personNoteInput.focus();
+        return;
+      }
+
       const payment = {
         id: crypto.randomUUID(),
         fullName,
+        personNote,
         amount: Number(amount.toFixed(2)),
         date
       };
@@ -932,13 +1051,14 @@
       payments.push(payment);
       savePayments();
 
-      ensurePersonExists(fullName);
+      ensurePersonExists(fullName, personNote);
       activeMonth = getMonthValue(date);
       localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
 
       render();
 
       fullNameInput.value = '';
+      personNoteInput.value = '';
       amountInput.value = '';
       hideSuggestions();
       fullNameInput.focus();
@@ -951,8 +1071,9 @@
     });
 
     addPersonBtn.addEventListener('click', () => {
-      if (addPerson(newPersonInput.value)) {
+      if (addPerson(newPersonInput.value, newPersonNoteInput.value)) {
         newPersonInput.value = '';
+        newPersonNoteInput.value = '';
         newPersonInput.focus();
       }
     });
@@ -1084,7 +1205,11 @@
 
       if (e.key === 'Enter' && activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
         e.preventDefault();
-        applySuggestedName(items[activeSuggestionIndex].textContent || '');
+        const matches = people
+          .map(person => typeof person === 'string' ? { fullName: person, note: '' } : person)
+          .filter(person => normalizeCompare(`${person.fullName} ${person.note || ''}`).includes(normalizeCompare(fullNameInput.value)))
+          .slice(0, 8);
+        if (matches[activeSuggestionIndex]) applySuggestedName(matches[activeSuggestionIndex]);
       }
 
       if (e.key === 'Escape') {
