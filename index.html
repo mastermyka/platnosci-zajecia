@@ -1071,49 +1071,55 @@
     }
 
     form.addEventListener('submit', (e) => {
-      e.preventDefault();
+  e.preventDefault();
 
-      const fullName = normalizeName(fullNameInput.value);
-      const personNote = normalizeName(personNoteInput.value);
-      const amount = Number(amountInput.value);
-      const date = dateInput.value;
+  const fullName = normalizeName(fullNameInput.value);
+  let personNote = normalizeName(personNoteInput.value);
+  const amount = Number(amountInput.value);
+  const date = dateInput.value;
 
-      if (!fullName || !date || Number.isNaN(amount)) {
-        alert('Uzupełnij wszystkie pola.');
-        return;
-      }
+  if (!fullName || !date || Number.isNaN(amount)) {
+    alert('Uzupełnij wszystkie pola.');
+    return;
+  }
 
-      const sameNameExists = people.some(person =>
-        normalizeCompare(person.fullName) === normalizeCompare(fullName)
-      );
+  const sameNamePeople = people.filter(person =>
+    normalizeCompare(person.fullName) === normalizeCompare(fullName)
+  );
 
-      if (sameNameExists && !personNote) {
-        alert('To nie jest notatka w polu imienia i nazwiska. Uzupełnij osobne pole „Notatka rozróżniająca”.');
-        personNoteInput.focus();
-        return;
-      }
+  // notatka wymagana tylko przy wielu osobach o tym samym imieniu i nazwisku
+  if (sameNamePeople.length > 1 && !personNote) {
+    alert('Dla tego imienia i nazwiska istnieje więcej niż jedna osoba. Uzupełnij pole „Notatka rozróżniająca”.');
+    personNoteInput.focus();
+    return;
+  }
 
-      const payment = {
-        id: crypto.randomUUID(),
-        fullName,
-        personNote,
-        amount: Number(amount.toFixed(2)),
-        date
-      };
+  // jeśli istnieje dokładnie jedna taka osoba i ma notatkę, można ją uzupełnić automatycznie
+  if (sameNamePeople.length === 1 && !personNote && sameNamePeople[0].note) {
+    personNote = sameNamePeople[0].note;
+  }
 
-      payments.push(payment);
-      savePayments();
+  const payment = {
+    id: crypto.randomUUID(),
+    fullName,
+    personNote,
+    amount: Number(amount.toFixed(2)),
+    date
+  };
 
-      ensurePersonExists(fullName, personNote);
-      activeMonth = getMonthValue(date);
-      localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
+  payments.push(payment);
+  savePayments();
 
-      render();
-      form.reset();
-      dateInput.value = getTodayLocalISO();
-      hideSuggestions();
-      fullNameInput.focus();
-    });
+  ensurePersonExists(fullName, personNote);
+  activeMonth = getMonthValue(date);
+  localStorage.setItem(ACTIVE_MONTH_KEY, activeMonth);
+
+  render();
+  form.reset();
+  dateInput.value = getTodayLocalISO();
+  hideSuggestions();
+  fullNameInput.focus();
+});
 
     resetFormBtn.addEventListener('click', () => {
       form.reset();
