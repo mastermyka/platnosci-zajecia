@@ -172,6 +172,27 @@
       color: white;
     }
 
+    .month-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .month-tab {
+      background: #eff6ff;
+      color: var(--primary);
+      border-radius: 999px;
+      padding: 9px 13px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .month-tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
     .muted {
       color: var(--muted);
       font-size: 14px;
@@ -179,26 +200,9 @@
 
     .filters {
       display: grid;
-      grid-template-columns: 1fr 220px;
+      grid-template-columns: 1fr;
       gap: 10px;
       margin-bottom: 14px;
-    }
-
-    select {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 12px 14px;
-      background: #fff;
-      color: var(--text);
-      outline: none;
-      font: inherit;
-      font-size: 16px;
-    }
-
-    select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
     }
 
     .summary {
@@ -301,7 +305,6 @@
       .summary { grid-template-columns: 1fr; }
       .toolbar { align-items: stretch; }
       .button-row button { width: 100%; }
-      .filters { grid-template-columns: 1fr; }
     }
 
     /* --- FIX iPhone / mobile --- */
@@ -397,12 +400,10 @@
         </div>
 
         <div id="tabs" class="tabs"></div>
+        <div id="monthTabs" class="month-tabs"></div>
 
         <div class="filters">
           <input id="searchInput" type="text" placeholder="Szukaj po nazwisku lub imieniu..." />
-          <select id="monthFilter">
-            <option value="">Wszystkie miesiące</option>
-          </select>
         </div>
 
         <div class="summary">
@@ -458,13 +459,13 @@
     const resetFormBtn = document.getElementById('resetFormBtn');
 
     const tabsEl = document.getElementById('tabs');
+    const monthTabsEl = document.getElementById('monthTabs');
     const tableBody = document.getElementById('tableBody');
     const emptyState = document.getElementById('emptyState');
     const activeGroupLabel = document.getElementById('activeGroupLabel');
     const countValue = document.getElementById('countValue');
     const sumValue = document.getElementById('sumValue');
     const searchInput = document.getElementById('searchInput');
-    const monthFilter = document.getElementById('monthFilter');
 
     const exportCurrentBtn = document.getElementById('exportCurrentBtn');
     const exportAllBtn = document.getElementById('exportAllBtn');
@@ -555,21 +556,6 @@
       }
     }
 
-    function renderMonthFilter() {
-      const months = getMonthsForActiveGroup();
-      ensureActiveMonth();
-
-      monthFilter.innerHTML = '<option value="">Wszystkie miesiące</option>';
-
-      months.forEach(month => {
-        const option = document.createElement('option');
-        option.value = month;
-        option.textContent = getMonthLabel(month);
-        option.selected = month === activeMonth;
-        monthFilter.appendChild(option);
-      });
-    }
-
     function ensureActiveGroup() {
       const groups = getGroups();
       if (!groups.length) {
@@ -603,6 +589,42 @@
           render();
         });
         tabsEl.appendChild(button);
+      });
+    }
+
+    function renderMonthTabs() {
+      const months = getMonthsForActiveGroup();
+      ensureActiveMonth();
+      monthTabsEl.innerHTML = '';
+
+      if (!activeGroup || !months.length) return;
+
+      const allButton = document.createElement('button');
+      allButton.type = 'button';
+      allButton.className = `month-tab ${activeMonth === '' ? 'active' : ''}`;
+      allButton.textContent = 'Wszystkie miesiące';
+      allButton.addEventListener('click', () => {
+        activeMonth = '';
+        saveActiveMonth();
+        renderSummary();
+        renderTable();
+        renderMonthTabs();
+      });
+      monthTabsEl.appendChild(allButton);
+
+      months.forEach(month => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `month-tab ${month === activeMonth ? 'active' : ''}`;
+        button.textContent = getMonthLabel(month);
+        button.addEventListener('click', () => {
+          activeMonth = month;
+          saveActiveMonth();
+          renderSummary();
+          renderTable();
+          renderMonthTabs();
+        });
+        monthTabsEl.appendChild(button);
       });
     }
 
@@ -667,7 +689,7 @@
 
     function render() {
       renderTabs();
-      renderMonthFilter();
+      renderMonthTabs();
       renderSummary();
       renderTable();
     }
@@ -758,13 +780,6 @@
     searchInput.addEventListener('input', () => {
       searchQuery = searchInput.value;
       saveSearchQuery();
-      renderSummary();
-      renderTable();
-    });
-
-    monthFilter.addEventListener('change', () => {
-      activeMonth = monthFilter.value;
-      saveActiveMonth();
       renderSummary();
       renderTable();
     });
