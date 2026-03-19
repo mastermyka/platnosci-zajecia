@@ -916,8 +916,6 @@ select {
         people = [...people, { fullName: normalizedName, note: normalizedNote }];
         savePeople();
       }
-    }
-    
     function addPerson(name, note = '') {
       const normalized = normalizeName(name);
       const normalizedNote = normalizeName(note);
